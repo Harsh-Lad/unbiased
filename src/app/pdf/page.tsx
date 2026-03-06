@@ -5,7 +5,6 @@ import { FileUpload } from "@/components/upload/FileUpload";
 import { AnalysisResults } from "@/components/analysis/AnalysisResults";
 import { CharacterDialogue } from "@/components/character-dialogue/CharacterDialogue";
 import { AnalysisSkeleton } from "@/components/analysis/AnalysisSkeleton";
-import { useApiKey } from "@/components/ApiKeyProvider";
 import { analyzePDFAction } from "@/actions/analyzePDF";
 import { type AnalysisResult } from "@/lib/ai/ai-client";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -14,7 +13,6 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export default function PDFPage() {
-    const { apiKey, isKeySet } = useApiKey();
     const [isLoading, setIsLoading] = useState(false);
     const [result, setResult] = useState<AnalysisResult | null>(null);
     const [error, setError] = useState<string | null>(null);
@@ -22,11 +20,6 @@ export default function PDFPage() {
     const [textContent, setTextContent] = useState("");
 
     const handleAnalyzePDF = async () => {
-        if (!isKeySet) {
-            setError("Please set your API key first using the key icon in the navigation bar.");
-            return;
-        }
-
         if (!selectedFile) {
             setError("Please select a PDF file to analyze.");
             return;
@@ -39,7 +32,6 @@ export default function PDFPage() {
         try {
             const formData = new FormData();
             formData.append("file", selectedFile);
-            formData.append("apiKey", apiKey);
 
             const response = await analyzePDFAction(formData);
 
@@ -56,11 +48,6 @@ export default function PDFPage() {
     };
 
     const handleAnalyzeText = async () => {
-        if (!isKeySet) {
-            setError("Please set your API key first using the key icon in the navigation bar.");
-            return;
-        }
-
         if (!textContent.trim()) {
             setError("Please enter some text to analyze.");
             return;
@@ -73,7 +60,6 @@ export default function PDFPage() {
         try {
             const formData = new FormData();
             formData.append("textContent", textContent);
-            formData.append("apiKey", apiKey);
 
             const response = await analyzePDFAction(formData);
 
@@ -91,13 +77,11 @@ export default function PDFPage() {
 
     return (
         <div className="relative">
-            {/* Background */}
             <div className="fixed inset-0 -z-10">
                 <div className="absolute inset-0 bg-gradient-to-br from-blue-50/50 via-white to-cyan-50/50 dark:from-slate-950 dark:via-slate-950 dark:to-blue-950/20" />
             </div>
 
             <div className="mx-auto max-w-4xl px-4 py-12 sm:px-6 lg:px-8 space-y-8">
-                {/* Header */}
                 <div className="space-y-4">
                     <div className="flex items-center gap-3">
                         <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-cyan-500 text-2xl shadow-lg shadow-blue-500/25">
@@ -112,16 +96,6 @@ export default function PDFPage() {
                     </div>
                 </div>
 
-                {/* API Key Warning */}
-                {!isKeySet && (
-                    <Alert className="border-amber-200 bg-amber-50/50 dark:border-amber-800 dark:bg-amber-950/20">
-                        <AlertDescription className="text-amber-700 dark:text-amber-300">
-                            ⚠️ Please set your API key using the <strong>🔑 Set API Key</strong> button in the navigation bar before analyzing content.
-                        </AlertDescription>
-                    </Alert>
-                )}
-
-                {/* Upload Section */}
                 <Tabs defaultValue="pdf" className="space-y-6">
                     <TabsList className="grid w-full grid-cols-2">
                         <TabsTrigger value="pdf">📄 Upload PDF</TabsTrigger>
@@ -183,7 +157,6 @@ export default function PDFPage() {
                     </TabsContent>
                 </Tabs>
 
-                {/* Error */}
                 {error && (
                     <Alert className="border-red-200 bg-red-50/50 dark:border-red-800 dark:bg-red-950/20">
                         <AlertDescription className="text-red-700 dark:text-red-300">
@@ -192,10 +165,8 @@ export default function PDFPage() {
                     </Alert>
                 )}
 
-                {/* Loading */}
                 {isLoading && <AnalysisSkeleton />}
 
-                {/* Results */}
                 {result && !isLoading && (
                     <div className="space-y-8">
                         <AnalysisResults result={result} />

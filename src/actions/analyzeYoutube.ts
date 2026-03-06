@@ -5,11 +5,6 @@ import { analyzeText, parseAnalysisResponse, type AnalysisResult } from "@/lib/a
 import { buildFullPrompt } from "@/lib/ai/prompts";
 import { shouldSummarize, buildSummarizationPrompt } from "@/lib/pdf/pdf";
 
-interface AnalyzeYoutubeInput {
-    url: string;
-    apiKey: string;
-}
-
 interface AnalyzeYoutubeResult {
     success: boolean;
     data?: AnalysisResult;
@@ -18,14 +13,15 @@ interface AnalyzeYoutubeResult {
 }
 
 export async function analyzeYoutubeAction(
-    input: AnalyzeYoutubeInput
+    url: string
 ): Promise<AnalyzeYoutubeResult> {
     try {
-        if (!input.apiKey) {
-            return { success: false, error: "Please provide an API key in the settings." };
+        const apiKey = process.env.API_KEY;
+        if (!apiKey) {
+            return { success: false, error: "API key is not configured. Please set API_KEY in your .env file." };
         }
 
-        const videoId = extractVideoId(input.url);
+        const videoId = extractVideoId(url);
         if (!videoId) {
             return { success: false, error: "Invalid YouTube URL. Please paste a valid YouTube video link." };
         }
@@ -47,7 +43,7 @@ export async function analyzeYoutubeAction(
             transcript = await analyzeText(
                 "You are a document summarizer. Preserve key arguments, claims, and notable language choices.",
                 summaryPrompt,
-                input.apiKey
+                apiKey
             );
         }
 
@@ -56,7 +52,7 @@ export async function analyzeYoutubeAction(
         const rawAnalysis = await analyzeText(
             systemPrompt,
             `Please analyze the following YouTube video transcript for bias and framing:\n\n${transcript}`,
-            input.apiKey
+            apiKey
         );
 
         const result = parseAnalysisResponse(rawAnalysis);

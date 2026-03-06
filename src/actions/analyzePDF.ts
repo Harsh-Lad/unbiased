@@ -14,18 +14,17 @@ export async function analyzePDFAction(
     formData: FormData
 ): Promise<AnalyzePDFResult> {
     try {
-        const apiKey = formData.get("apiKey") as string;
+        const apiKey = process.env.API_KEY;
+        if (!apiKey) {
+            return { success: false, error: "API key is not configured. Please set API_KEY in your .env file." };
+        }
+
         const file = formData.get("file") as File | null;
         const textContent = formData.get("textContent") as string | null;
-
-        if (!apiKey) {
-            return { success: false, error: "Please provide an API key in the settings." };
-        }
 
         let extractedText = "";
 
         if (file && file.size > 0) {
-            // Process PDF file in memory
             const arrayBuffer = await file.arrayBuffer();
             const buffer = Buffer.from(arrayBuffer);
             extractedText = await extractTextFromPDF(buffer);
@@ -44,7 +43,6 @@ export async function analyzePDFAction(
 
         const systemPrompt = buildFullPrompt();
 
-        // If text is very large, summarize first
         if (shouldSummarize(extractedText)) {
             const summaryPrompt = buildSummarizationPrompt(extractedText);
             extractedText = await analyzeText(
@@ -54,7 +52,6 @@ export async function analyzePDFAction(
             );
         }
 
-        // For chunked content, analyze each chunk and combine
         const chunks = chunkText(extractedText, 12000);
 
         if (chunks.length === 1) {
@@ -67,7 +64,6 @@ export async function analyzePDFAction(
             return { success: true, data: result };
         }
 
-        // Multi-chunk: analyze each, then combine
         const chunkAnalyses: string[] = [];
         for (const chunk of chunks) {
             const analysis = await analyzeText(
@@ -78,7 +74,6 @@ export async function analyzePDFAction(
             chunkAnalyses.push(analysis);
         }
 
-        // Combine analyses
         const combinedPrompt = `I have analyzed multiple sections of a document. Please synthesize these analyses into a single, coherent bias analysis following the structured format (Content Summary, Potential Bias Indicators, Framing Techniques, Missing Perspectives, Educational Insight). Also include the character dialogue.\n\nSection analyses:\n\n${chunkAnalyses.join("\n\n---\n\n")}`;
 
         const finalAnalysis = await analyzeText(systemPrompt, combinedPrompt, apiKey);
