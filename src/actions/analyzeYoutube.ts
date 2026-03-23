@@ -1,6 +1,8 @@
 "use server";
 
 import { extractVideoId, fetchTranscript, cleanTranscript } from "@/lib/youtube/youtube";
+import { downloadAudioBuffer } from "@/lib/youtube/audio";
+import { transcribeAudioWithGemini } from "@/lib/youtube/transcribe";
 import { analyzeText, parseAnalysisResponse, type AnalysisResult } from "@/lib/ai/ai-client";
 import { buildFullPrompt } from "@/lib/ai/prompts";
 import { shouldSummarize, buildSummarizationPrompt } from "@/lib/pdf/pdf";
@@ -26,16 +28,31 @@ export async function analyzeYoutubeAction(
             return { success: false, error: "Invalid YouTube URL. Please paste a valid YouTube video link." };
         }
 
-        // Fetch and clean transcript
-        const segments = await fetchTranscript(videoId);
-        if (!segments || segments.length === 0) {
-            return {
-                success: false,
-                error: "No captions/subtitles found for this video. The video must have available captions.",
-            };
-        }
+        let transcript: string;
 
-        let transcript = cleanTranscript(segments);
+        // Step 1: Try caption-based transcript
+        try {
+            const segments = await fetchTranscript(videoId);
+            if (!segments || segments.length === 0) {
+                throw new Error("No caption segments found");
+            }
+            transcript = cleanTranscript(segments);
+        } catch {
+            // Step 2: Fallback to audio extraction + transcription
+            const geminiKey = process.env.GEMINI_API_KEY;
+            if (!geminiKey) {
+                return {
+                    success: false,
+                    error:
+                        "No captions/subtitles found for this video. To analyze videos without captions, " +
+                        "add a free Gemini API key (GEMINI_API_KEY) to your .env.local file. " +
+                        "Get one at https://aistudio.google.com/apikey",
+                };
+            }
+
+            const { buffer, mimeType } = await downloadAudioBuffer(videoId);
+            transcript = await transcribeAudioWithGemini(buffer, mimeType, geminiKey);
+        }
 
         // If transcript is very large, summarize first
         if (shouldSummarize(transcript)) {

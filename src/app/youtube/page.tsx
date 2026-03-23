@@ -1,18 +1,35 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
+import { motion } from "framer-motion";
 import { YouTubeInput } from "@/components/upload/YouTubeInput";
-import { AnalysisResults } from "@/components/analysis/AnalysisResults";
-import { CharacterDialogue } from "@/components/character-dialogue/CharacterDialogue";
+import { AnalysisContainer } from "@/components/analysis/AnalysisContainer";
 import { AnalysisSkeleton } from "@/components/analysis/AnalysisSkeleton";
 import { analyzeYoutubeAction } from "@/actions/analyzeYoutube";
 import { type AnalysisResult } from "@/lib/ai/ai-client";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import {
+    pageIconEntrance,
+    pageTitleEntrance,
+    pageSubtitleEntrance,
+    pageContentEntrance,
+} from "@/lib/animation-variants";
 
 export default function YouTubePage() {
     const [isLoading, setIsLoading] = useState(false);
     const [result, setResult] = useState<AnalysisResult | null>(null);
     const [error, setError] = useState<string | null>(null);
+    const resultsRef = useRef<HTMLDivElement>(null);
+
+    // Auto-scroll to results when analysis completes
+    useEffect(() => {
+        if (result && !isLoading && resultsRef.current) {
+            const t = setTimeout(() => {
+                resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+            }, 300);
+            return () => clearTimeout(t);
+        }
+    }, [result, isLoading]);
 
     const handleAnalyze = async (url: string) => {
         setIsLoading(true);
@@ -35,31 +52,55 @@ export default function YouTubePage() {
     };
 
     return (
-        <div className="relative">
-            <div className="fixed inset-0 -z-10">
-                <div className="absolute inset-0 bg-gradient-to-br from-red-50/50 via-white to-pink-50/50 dark:from-slate-950 dark:via-slate-950 dark:to-red-950/20" />
-            </div>
+        <div className="relative min-h-[calc(100vh-4rem)] bg-yellow-50 dark:bg-slate-900 font-sans overflow-hidden">
+            {/* Comic dots pattern overlay */}
+            <div className="absolute inset-0 z-0 opacity-[0.04] dark:opacity-[0.06] mix-blend-multiply dark:mix-blend-screen" style={{ backgroundImage: 'radial-gradient(circle, #000 2px, transparent 2px)', backgroundSize: '24px 24px' }} />
 
-            <div className="mx-auto max-w-4xl px-4 py-12 sm:px-6 lg:px-8 space-y-8">
-                <div className="space-y-4">
-                    <div className="flex items-center gap-3">
-                        <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-red-500 to-pink-500 text-2xl shadow-lg shadow-red-500/25">
+            <div className="relative z-10 mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:px-8 space-y-12">
+                <div className="space-y-6 text-center mt-4">
+                    <div className="flex flex-col items-center justify-center gap-4 mb-4">
+                        <motion.div
+                            className="flex h-20 w-20 items-center justify-center rounded-2xl bg-gradient-to-br from-red-500 to-pink-600 text-5xl shadow-[6px_6px_0px_rgba(0,0,0,1)] dark:shadow-[6px_6px_0px_rgba(255,255,255,1)] border-4 border-black dark:border-white transition-transform hover:rotate-12 duration-300"
+                            variants={pageIconEntrance}
+                            initial="hidden"
+                            animate="visible"
+                        >
                             🎬
-                        </div>
-                        <div>
-                            <h1 className="text-3xl font-bold">YouTube Video Analysis</h1>
-                            <p className="text-muted-foreground">
-                                Analyze video transcripts for bias and framing techniques
-                            </p>
-                        </div>
+                        </motion.div>
+                        <motion.h1
+                            className="text-4xl md:text-5xl lg:text-6xl font-black uppercase tracking-tighter text-white dark:text-slate-900 mt-2"
+                            style={{ WebkitTextStroke: '3px black', textShadow: '6px 6px 0px rgba(0,0,0,1)' }}
+                            variants={pageTitleEntrance}
+                            initial="hidden"
+                            animate="visible"
+                        >
+                            Let&apos;s Find The Truth!
+                        </motion.h1>
                     </div>
+                    <motion.p
+                        className="text-lg md:text-xl font-bold text-black/80 dark:text-white/90 max-w-2xl mx-auto bg-white/70 dark:bg-black/40 px-6 py-4 rounded-2xl border-4 border-black/20 dark:border-white/20 shadow-sm backdrop-blur-sm"
+                        variants={pageSubtitleEntrance}
+                        initial="hidden"
+                        animate="visible"
+                    >
+                        Paste a YouTube link below and our detective AI team will investigate it for bias and framing techniques! 🕵️‍♂️✨
+                    </motion.p>
                 </div>
 
-                <YouTubeInput onSubmit={handleAnalyze} isLoading={isLoading} />
+                <motion.div
+                    className="relative z-20"
+                    variants={pageContentEntrance}
+                    initial="hidden"
+                    animate="visible"
+                >
+                    <div className="transform transition-transform duration-300 hover:-translate-y-1 focus-within:-translate-y-1">
+                        <YouTubeInput onSubmit={handleAnalyze} isLoading={isLoading} />
+                    </div>
+                </motion.div>
 
                 {error && (
-                    <Alert className="border-red-200 bg-red-50/50 dark:border-red-800 dark:bg-red-950/20">
-                        <AlertDescription className="text-red-700 dark:text-red-300">
+                    <Alert className="border-4 border-black dark:border-white bg-red-100 dark:bg-red-900 shadow-[6px_6px_0px_rgba(0,0,0,1)] dark:shadow-[6px_6px_0px_rgba(255,255,255,1)] rounded-2xl">
+                        <AlertDescription className="text-red-900 dark:text-red-100 font-black text-lg p-2">
                             ❌ {error}
                         </AlertDescription>
                     </Alert>
@@ -68,9 +109,8 @@ export default function YouTubePage() {
                 {isLoading && <AnalysisSkeleton />}
 
                 {result && !isLoading && (
-                    <div className="space-y-8">
-                        <AnalysisResults result={result} />
-                        <CharacterDialogue dialogue={result.characterDialogue} />
+                    <div ref={resultsRef}>
+                        <AnalysisContainer result={result} />
                     </div>
                 )}
             </div>

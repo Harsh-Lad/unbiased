@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" fill="none">
+  <!-- Body -->
+  <circle cx="64" cy="72" r="36" fill="#F59E0B"/>
+  <circle cx="64" cy="72" r="36" fill="url(#det-grad)" opacity="0.3"/>
+  <!-- Head -->
+  <circle cx="64" cy="40" r="28" fill="#FBBF24"/>
+  <!-- Hat -->
+  <path d="M36 36 Q64 10 92 36" fill="#92400E" stroke="#78350F" stroke-width="2"/>
+  <rect x="38" y="34" width="52" height="8" rx="2" fill="#92400E"/>
+  <!-- Eyes -->
+  <circle cx="54" cy="38" r="4" fill="white"/>
+  <circle cx="74" cy="38" r="4" fill="white"/>
+  <circle cx="55" cy="39" r="2" fill="#1E293B"/>
+  <circle cx="75" cy="39" r="2" fill="#1E293B"/>
+  <!-- Smile -->
+  <path d="M56 48 Q64 54 72 48" stroke="#92400E" stroke-width="2" fill="none" stroke-linecap="round"/>
+  <!-- Magnifying glass -->
+  <circle cx="100" cy="70" r="12" stroke="#6B7280" stroke-width="3" fill="#DBEAFE" opacity="0.5"/>
+  <line x1="108" y1="78" x2="116" y2="90" stroke="#6B7280" stroke-width="3" stroke-linecap="round"/>
+  <!-- Coat collar -->
+  <path d="M44 60 L64 75 L84 60" stroke="#B45309" stroke-width="2" fill="none"/>
+  <defs>
+    <linearGradient id="det-grad" x1="28" y1="36" x2="100" y2="108">
+      <stop offset="0%" stop-color="#F59E0B"/>
+      <stop offset="100%" stop-color="#D97706"/>
+    </linearGradient>
+  </defs>
+</svg>

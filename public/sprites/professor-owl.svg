@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" fill="none">
+  <!-- Body -->
+  <ellipse cx="64" cy="82" rx="32" ry="30" fill="#6366F1"/>
+  <ellipse cx="64" cy="82" rx="24" ry="22" fill="#818CF8"/>
+  <!-- Belly -->
+  <ellipse cx="64" cy="88" rx="16" ry="14" fill="#C7D2FE"/>
+  <!-- Head -->
+  <circle cx="64" cy="40" r="28" fill="#6366F1"/>
+  <!-- Ear tufts -->
+  <path d="M40 20 L44 32 L36 30Z" fill="#4F46E5"/>
+  <path d="M88 20 L84 32 L92 30Z" fill="#4F46E5"/>
+  <!-- Eye circles -->
+  <circle cx="52" cy="38" r="10" fill="white"/>
+  <circle cx="76" cy="38" r="10" fill="white"/>
+  <!-- Eyes -->
+  <circle cx="54" cy="38" r="5" fill="#1E293B"/>
+  <circle cx="78" cy="38" r="5" fill="#1E293B"/>
+  <circle cx="56" cy="36" r="2" fill="white"/>
+  <circle cx="80" cy="36" r="2" fill="white"/>
+  <!-- Beak -->
+  <path d="M60 46 L64 52 L68 46Z" fill="#F59E0B"/>
+  <!-- Graduation cap -->
+  <rect x="42" y="16" width="44" height="4" rx="1" fill="#1E293B"/>
+  <path d="M64 10 L42 18 L64 22 L86 18Z" fill="#1E293B"/>
+  <line x1="82" y1="18" x2="86" y2="28" stroke="#1E293B" stroke-width="2"/>
+  <circle cx="86" cy="29" r="3" fill="#F59E0B"/>
+  <!-- Wings -->
+  <path d="M32 70 Q24 80 32 94" stroke="#4F46E5" stroke-width="3" fill="none" stroke-linecap="round"/>
+  <path d="M96 70 Q104 80 96 94" stroke="#4F46E5" stroke-width="3" fill="none" stroke-linecap="round"/>
+  <!-- Feet -->
+  <path d="M52 110 L48 118 M52 110 L52 118 M52 110 L56 118" stroke="#F59E0B" stroke-width="2" stroke-linecap="round"/>
+  <path d="M76 110 L72 118 M76 110 L76 118 M76 110 L80 118" stroke="#F59E0B" stroke-width="2" stroke-linecap="round"/>
+</svg>

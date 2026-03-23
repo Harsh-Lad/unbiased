@@ -1,9 +1,10 @@
 "use client";
 
+import { motion } from "framer-motion";
 import { type AnalysisResult } from "@/lib/ai/ai-client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
+import { staggerContainer, analysisCardVariants } from "@/lib/animation-variants";
 
 interface AnalysisResultsProps {
     result: AnalysisResult;
@@ -14,41 +15,41 @@ const sections = [
         key: "contentSummary" as const,
         title: "Content Summary",
         icon: "📋",
-        color: "from-blue-500 to-cyan-500",
-        bgColor: "bg-blue-50 dark:bg-blue-950/30",
-        badgeColor: "bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300",
+        color: "from-blue-400 to-cyan-400",
+        bgColor: "bg-blue-100 dark:bg-blue-900",
+        badgeColor: "bg-blue-200 text-blue-800 dark:bg-blue-800 dark:text-blue-200 border-2 border-black dark:border-white",
     },
     {
         key: "biasIndicators" as const,
         title: "Potential Bias Indicators",
         icon: "🔍",
-        color: "from-amber-500 to-orange-500",
-        bgColor: "bg-amber-50 dark:bg-amber-950/30",
-        badgeColor: "bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300",
+        color: "from-amber-400 to-orange-400",
+        bgColor: "bg-amber-100 dark:bg-amber-900",
+        badgeColor: "bg-amber-200 text-amber-800 dark:bg-amber-800 dark:text-amber-200 border-2 border-black dark:border-white",
     },
     {
         key: "framingTechniques" as const,
         title: "Framing Techniques",
         icon: "🎯",
-        color: "from-purple-500 to-pink-500",
-        bgColor: "bg-purple-50 dark:bg-purple-950/30",
-        badgeColor: "bg-purple-100 text-purple-700 dark:bg-purple-900/50 dark:text-purple-300",
+        color: "from-purple-400 to-pink-400",
+        bgColor: "bg-purple-100 dark:bg-purple-900",
+        badgeColor: "bg-purple-200 text-purple-800 dark:bg-purple-800 dark:text-purple-200 border-2 border-black dark:border-white",
     },
     {
         key: "missingPerspectives" as const,
         title: "Missing Perspectives",
         icon: "👁️",
-        color: "from-emerald-500 to-teal-500",
-        bgColor: "bg-emerald-50 dark:bg-emerald-950/30",
-        badgeColor: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300",
+        color: "from-emerald-400 to-teal-400",
+        bgColor: "bg-emerald-100 dark:bg-emerald-900",
+        badgeColor: "bg-emerald-200 text-emerald-800 dark:bg-emerald-800 dark:text-emerald-200 border-2 border-black dark:border-white",
     },
     {
         key: "educationalInsight" as const,
         title: "Educational Insight",
         icon: "💡",
-        color: "from-indigo-500 to-violet-500",
-        bgColor: "bg-indigo-50 dark:bg-indigo-950/30",
-        badgeColor: "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300",
+        color: "from-indigo-400 to-violet-400",
+        bgColor: "bg-indigo-100 dark:bg-indigo-900",
+        badgeColor: "bg-indigo-200 text-indigo-800 dark:bg-indigo-800 dark:text-indigo-200 border-2 border-black dark:border-white",
     },
 ];
 
@@ -62,7 +63,7 @@ function renderMarkdownContent(content: string) {
         // Bold text
         const withBold = trimmed.replace(
             /\*\*(.*?)\*\*/g,
-            '<strong class="font-semibold text-foreground">$1</strong>'
+            '<strong class="font-black text-foreground">$1</strong>'
         );
 
         // Bullet points
@@ -70,7 +71,7 @@ function renderMarkdownContent(content: string) {
             return (
                 <li
                     key={i}
-                    className="ml-4 text-sm leading-relaxed text-muted-foreground"
+                    className="ml-6 text-sm md:text-base leading-relaxed text-foreground font-medium list-disc"
                     dangerouslySetInnerHTML={{ __html: withBold.replace(/^[-•*]\s*/, "") }}
                 />
             );
@@ -79,7 +80,7 @@ function renderMarkdownContent(content: string) {
         return (
             <p
                 key={i}
-                className="text-sm leading-relaxed text-muted-foreground"
+                className="text-sm md:text-base leading-relaxed text-foreground font-medium mb-3 last:mb-0"
                 dangerouslySetInnerHTML={{ __html: withBold }}
             />
         );
@@ -88,43 +89,56 @@ function renderMarkdownContent(content: string) {
 
 export function AnalysisResults({ result }: AnalysisResultsProps) {
     return (
-        <div className="space-y-6">
-            <div className="flex items-center gap-3">
-                <div className="h-8 w-1 rounded-full bg-gradient-to-b from-indigo-500 to-purple-600" />
-                <h2 className="text-2xl font-bold">Analysis Results</h2>
+        <div className="space-y-8">
+            <div className="flex items-center gap-4 border-b-4 border-black dark:border-white pb-4">
+                <div className="h-10 w-10 flex text-3xl items-center justify-center animate-bounce">
+                    ✨
+                </div>
+                <h2 className="text-3xl font-black uppercase tracking-tight text-black dark:text-white" style={{ textShadow: '2px 2px 0px rgba(0,0,0,0.1)' }}>
+                    Analysis Details
+                </h2>
             </div>
 
-            <div className="grid gap-4">
+            <motion.div
+                className="grid gap-6"
+                variants={staggerContainer}
+                initial="hidden"
+                whileInView="visible"
+                viewport={{ once: true, margin: "-40px" }}
+            >
                 {sections.map((section) => {
                     const content = result[section.key];
                     if (!content) return null;
 
                     return (
-                        <Card
-                            key={section.key}
-                            className={`overflow-hidden border-0 shadow-md transition-all duration-300 hover:shadow-lg ${section.bgColor}`}
-                        >
-                            <CardHeader className="pb-3">
-                                <div className="flex items-center gap-3">
-                                    <div
-                                        className={`flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br ${section.color} text-white text-lg shadow-sm`}
-                                    >
-                                        {section.icon}
+                        <motion.div key={section.key} variants={analysisCardVariants} whileHover={{ y: -4, transition: { duration: 0.2 } }}>
+                            <Card
+                                className={`overflow-hidden border-4 border-black dark:border-white shadow-[6px_6px_0px_rgba(0,0,0,1)] dark:shadow-[6px_6px_0px_rgba(255,255,255,1)] transition-shadow duration-300 hover:shadow-[8px_8px_0px_rgba(0,0,0,1)] dark:hover:shadow-[8px_8px_0px_rgba(255,255,255,1)] rounded-2xl ${section.bgColor}`}
+                            >
+                                <CardHeader className="pb-4 bg-white/40 dark:bg-black/20 border-b-4 border-black dark:border-white">
+                                    <div className="flex items-center gap-4">
+                                        <div
+                                            className={`flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br ${section.color} text-white text-2xl border-2 border-black dark:border-white shadow-[2px_2px_0px_rgba(0,0,0,1)]`}
+                                        >
+                                            {section.icon}
+                                        </div>
+                                        <CardTitle className="text-xl md:text-2xl font-black tracking-wide text-black dark:text-white">
+                                            {section.title}
+                                        </CardTitle>
+                                        <Badge variant="secondary" className={`ml-auto hidden sm:inline-flex ${section.badgeColor} font-bold tracking-wider`}>
+                                            INFO
+                                        </Badge>
                                     </div>
-                                    <CardTitle className="text-lg">{section.title}</CardTitle>
-                                    <Badge variant="secondary" className={section.badgeColor}>
-                                        Analysis
-                                    </Badge>
-                                </div>
-                            </CardHeader>
-                            <Separator className="opacity-50" />
-                            <CardContent className="pt-4">
-                                <ul className="space-y-2">{renderMarkdownContent(content)}</ul>
-                            </CardContent>
-                        </Card>
+                                </CardHeader>
+                                <CardContent className="pt-6">
+                                    <ul className="space-y-3">{renderMarkdownContent(content)}</ul>
+                                </CardContent>
+                            </Card>
+                        </motion.div>
                     );
                 })}
-            </div>
+            </motion.div>
         </div>
     );
 }
+

@@ -28,7 +28,7 @@ interface ProviderConfig {
     model: string;
 }
 
-function getProviderConfig(provider: AIProvider, apiKey: string): ProviderConfig {
+function getProviderConfig(provider: AIProvider, apiKey: string, isImage: boolean = false): ProviderConfig {
     switch (provider) {
         case "openai":
             return {
@@ -56,7 +56,7 @@ function getProviderConfig(provider: AIProvider, apiKey: string): ProviderConfig
                     "Content-Type": "application/json",
                     Authorization: `Bearer ${apiKey}`,
                 },
-                model: "grok-3",
+                model: isImage ? "grok-3" : "grok-3", // grok-3 natively supports vision, but we can explicitly document it here
             };
         case "gemini":
         default:
@@ -76,7 +76,7 @@ export async function analyzeText(
     apiKey: string
 ): Promise<string> {
     const provider = detectProvider(apiKey);
-    const config = getProviderConfig(provider, apiKey);
+    const config = getProviderConfig(provider, apiKey, false);
 
     if (provider === "gemini") {
         return callGemini(config, systemPrompt, userContent);
@@ -94,7 +94,7 @@ export async function analyzeImage(
     apiKey: string
 ): Promise<string> {
     const provider = detectProvider(apiKey);
-    const config = getProviderConfig(provider, apiKey);
+    const config = getProviderConfig(provider, apiKey, true);
 
     if (provider === "gemini") {
         return callGeminiWithImage(config, systemPrompt, imageBase64, mimeType);
