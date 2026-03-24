@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  serverExternalPackages: ["@distube/ytdl-core"],
+  serverExternalPackages: ["@distube/ytdl-core", "pdf-parse", "sharp", "undici"],
   experimental: {
     serverActions: {
       bodySizeLimit: "25mb",

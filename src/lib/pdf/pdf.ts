@@ -1,8 +1,9 @@
 /* eslint-disable @typescript-eslint/no-require-imports */
 
 export async function extractTextFromPDF(buffer: Buffer): Promise<string> {
-    // Dynamic import to avoid Next.js bundler issues with pdf-parse
-    const pdfParse = require("pdf-parse");
+    // Import the inner module directly to avoid pdf-parse's index.js
+    // which tries to load a test PDF file that doesn't exist
+    const pdfParse = require("pdf-parse/lib/pdf-parse.js");
     const data = await pdfParse(buffer);
     return data.text;
 }

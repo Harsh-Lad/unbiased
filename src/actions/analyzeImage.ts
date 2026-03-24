@@ -1,5 +1,6 @@
 "use server";
 
+import sharp from "sharp";
 import { analyzeImage, parseAnalysisResponse, type AnalysisResult } from "@/lib/ai/ai-client";
 import { buildFullPrompt, IMAGE_ANALYSIS_PROMPT } from "@/lib/ai/prompts";
 
@@ -8,6 +9,9 @@ interface AnalyzeImageResult {
     data?: AnalysisResult;
     error?: string;
 }
+
+const MAX_DIMENSION = 1024;
+const JPEG_QUALITY = 80;
 
 export async function analyzeImageAction(
     formData: FormData
@@ -40,14 +44,21 @@ export async function analyzeImageAction(
         }
 
         const arrayBuffer = await file.arrayBuffer();
-        const base64 = Buffer.from(arrayBuffer).toString("base64");
+
+        // Resize and compress image to reduce payload size
+        const compressed = await sharp(Buffer.from(arrayBuffer))
+            .resize(MAX_DIMENSION, MAX_DIMENSION, { fit: "inside", withoutEnlargement: true })
+            .jpeg({ quality: JPEG_QUALITY })
+            .toBuffer();
+
+        const base64 = compressed.toString("base64");
 
         const systemPrompt = `${buildFullPrompt()}\n\n${IMAGE_ANALYSIS_PROMPT}`;
 
         const rawAnalysis = await analyzeImage(
             systemPrompt,
             base64,
-            file.type,
+            "image/jpeg",
             apiKey
         );
 
@@ -55,7 +66,15 @@ export async function analyzeImageAction(
 
         return { success: true, data: result };
     } catch (error) {
-        const message = error instanceof Error ? error.message : "An unexpected error occurred.";
+        console.error("Image analysis error:", error);
+        let message = "An unexpected error occurred.";
+        if (error instanceof Error) {
+            if (error.name === "AbortError") {
+                message = "The request timed out. Try a smaller image.";
+            } else {
+                message = error.message;
+            }
+        }
         return { success: false, error: message };
     }
 }

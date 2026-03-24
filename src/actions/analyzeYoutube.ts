@@ -1,7 +1,7 @@
 "use server";
 
 import { extractVideoId, fetchTranscript, cleanTranscript } from "@/lib/youtube/youtube";
-import { downloadAudioBuffer } from "@/lib/youtube/audio";
+import { fetchSubtitlesWithYtDlp, downloadAudioBuffer } from "@/lib/youtube/audio";
 import { transcribeAudioWithGemini } from "@/lib/youtube/transcribe";
 import { analyzeText, parseAnalysisResponse, type AnalysisResult } from "@/lib/ai/ai-client";
 import { buildFullPrompt } from "@/lib/ai/prompts";
@@ -28,24 +28,32 @@ export async function analyzeYoutubeAction(
             return { success: false, error: "Invalid YouTube URL. Please paste a valid YouTube video link." };
         }
 
-        let transcript: string;
+        let transcript: string | null = null;
 
-        // Step 1: Try caption-based transcript
-        try {
-            const segments = await fetchTranscript(videoId);
-            if (!segments || segments.length === 0) {
-                throw new Error("No caption segments found");
+        // Step 1: Try yt-dlp subtitles (most reliable, works locally)
+        transcript = await fetchSubtitlesWithYtDlp(videoId);
+
+        // Step 2: Try youtube-transcript library (works on Vercel, no binary needed)
+        if (!transcript) {
+            try {
+                const segments = await fetchTranscript(videoId);
+                if (segments && segments.length > 0) {
+                    transcript = cleanTranscript(segments);
+                }
+            } catch {
+                // Continue to next fallback
             }
-            transcript = cleanTranscript(segments);
-        } catch {
-            // Step 2: Fallback to audio extraction + transcription
+        }
+
+        // Step 3: Fall back to audio extraction + Gemini transcription
+        if (!transcript) {
             const geminiKey = process.env.GEMINI_API_KEY;
             if (!geminiKey) {
                 return {
                     success: false,
                     error:
-                        "No captions/subtitles found for this video. To analyze videos without captions, " +
-                        "add a free Gemini API key (GEMINI_API_KEY) to your .env.local file. " +
+                        "Could not extract subtitles for this video. Add a free Gemini API key (GEMINI_API_KEY) " +
+                        "to your .env.local file to enable audio transcription. " +
                         "Get one at https://aistudio.google.com/apikey",
                 };
             }
@@ -76,6 +84,7 @@ export async function analyzeYoutubeAction(
 
         return { success: true, data: result, videoId };
     } catch (error) {
+        console.error("YouTube analysis error:", error);
         const message = error instanceof Error ? error.message : "An unexpected error occurred.";
         return { success: false, error: message };
     }

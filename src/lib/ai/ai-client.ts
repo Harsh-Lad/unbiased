@@ -1,3 +1,12 @@
+import { Agent, fetch as undiciFetch } from "undici";
+
+const agent = new Agent({ connect: { timeout: 60_000 } });
+
+/** fetch wrapper with extended connect timeout for large payloads */
+function apiFetch(url: string, init: Parameters<typeof undiciFetch>[1]) {
+    return undiciFetch(url, { ...init, dispatcher: agent });
+}
+
 export type AIProvider = "gemini" | "openai" | "anthropic" | "xai";
 
 export interface AnalysisResult {
@@ -56,7 +65,7 @@ function getProviderConfig(provider: AIProvider, apiKey: string, isImage: boolea
                     "Content-Type": "application/json",
                     Authorization: `Bearer ${apiKey}`,
                 },
-                model: isImage ? "grok-3" : "grok-3", // grok-3 natively supports vision, but we can explicitly document it here
+                model: isImage ? "grok-4-0709" : "grok-3",
             };
         case "gemini":
         default:
@@ -116,7 +125,7 @@ async function callGemini(
     systemPrompt: string,
     userContent: string
 ): Promise<string> {
-    const res = await fetch(config.url, {
+    const res = await apiFetch(config.url, {
         method: "POST",
         headers: config.headers,
         body: JSON.stringify({
@@ -131,7 +140,7 @@ async function callGemini(
         throw new Error(`Gemini API error (${res.status}): ${err}`);
     }
 
-    const data = await res.json();
+    const data: any = await res.json();
     return data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
 }
 
@@ -141,7 +150,7 @@ async function callGeminiWithImage(
     imageBase64: string,
     mimeType: string
 ): Promise<string> {
-    const res = await fetch(config.url, {
+    const res = await apiFetch(config.url, {
         method: "POST",
         headers: config.headers,
         body: JSON.stringify({
@@ -163,7 +172,7 @@ async function callGeminiWithImage(
         throw new Error(`Gemini API error (${res.status}): ${err}`);
     }
 
-    const data = await res.json();
+    const data: any = await res.json();
     return data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
 }
 
@@ -173,7 +182,7 @@ async function callOpenAICompatible(
     systemPrompt: string,
     userContent: string
 ): Promise<string> {
-    const res = await fetch(config.url, {
+    const res = await apiFetch(config.url, {
         method: "POST",
         headers: config.headers,
         body: JSON.stringify({
@@ -192,7 +201,7 @@ async function callOpenAICompatible(
         throw new Error(`${config.model} API error (${res.status}): ${err}`);
     }
 
-    const data = await res.json();
+    const data: any = await res.json();
     return data.choices?.[0]?.message?.content ?? "";
 }
 
@@ -202,39 +211,47 @@ async function callOpenAICompatibleWithImage(
     imageBase64: string,
     mimeType: string
 ): Promise<string> {
-    const res = await fetch(config.url, {
-        method: "POST",
-        headers: config.headers,
-        body: JSON.stringify({
-            model: config.model,
-            messages: [
-                { role: "system", content: systemPrompt },
-                {
-                    role: "user",
-                    content: [
-                        {
-                            type: "image_url",
-                            image_url: { url: `data:${mimeType};base64,${imageBase64}` },
-                        },
-                        {
-                            type: "text",
-                            text: "Analyze this image for bias, stereotypes, and persuasion techniques.",
-                        },
-                    ],
-                },
-            ],
-            temperature: 0.7,
-            max_tokens: 4096,
-        }),
-    });
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 120_000);
 
-    if (!res.ok) {
-        const err = await res.text();
-        throw new Error(`${config.model} API error (${res.status}): ${err}`);
+    try {
+        const res = await apiFetch(config.url, {
+            method: "POST",
+            headers: config.headers,
+            body: JSON.stringify({
+                model: config.model,
+                messages: [
+                    { role: "system", content: systemPrompt },
+                    {
+                        role: "user",
+                        content: [
+                            {
+                                type: "image_url",
+                                image_url: { url: `data:${mimeType};base64,${imageBase64}` },
+                            },
+                            {
+                                type: "text",
+                                text: "Analyze this image for bias, stereotypes, and persuasion techniques.",
+                            },
+                        ],
+                    },
+                ],
+                temperature: 0.7,
+                max_tokens: 4096,
+            }),
+            signal: controller.signal,
+        });
+
+        if (!res.ok) {
+            const err = await res.text();
+            throw new Error(`${config.model} API error (${res.status}): ${err}`);
+        }
+
+        const data: any = await res.json();
+        return data.choices?.[0]?.message?.content ?? "";
+    } finally {
+        clearTimeout(timeout);
     }
-
-    const data = await res.json();
-    return data.choices?.[0]?.message?.content ?? "";
 }
 
 // --- Anthropic ---
@@ -243,7 +260,7 @@ async function callAnthropic(
     systemPrompt: string,
     userContent: string
 ): Promise<string> {
-    const res = await fetch(config.url, {
+    const res = await apiFetch(config.url, {
         method: "POST",
         headers: config.headers,
         body: JSON.stringify({
@@ -260,7 +277,7 @@ async function callAnthropic(
         throw new Error(`Anthropic API error (${res.status}): ${err}`);
     }
 
-    const data = await res.json();
+    const data: any = await res.json();
     return data.content?.[0]?.text ?? "";
 }
 
@@ -270,7 +287,7 @@ async function callAnthropicWithImage(
     imageBase64: string,
     mimeType: string
 ): Promise<string> {
-    const res = await fetch(config.url, {
+    const res = await apiFetch(config.url, {
         method: "POST",
         headers: config.headers,
         body: JSON.stringify({
@@ -305,7 +322,7 @@ async function callAnthropicWithImage(
         throw new Error(`Anthropic API error (${res.status}): ${err}`);
     }
 
-    const data = await res.json();
+    const data: any = await res.json();
     return data.content?.[0]?.text ?? "";
 }
 

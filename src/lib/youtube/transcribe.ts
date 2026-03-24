@@ -1,3 +1,7 @@
+import { Agent, fetch as undiciFetch } from "undici";
+
+const agent = new Agent({ connect: { timeout: 60_000 } });
+
 export async function transcribeAudioWithGemini(
   audioBuffer: Buffer,
   mimeType: string,
@@ -7,8 +11,9 @@ export async function transcribeAudioWithGemini(
 
   const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiApiKey}`;
 
-  const res = await fetch(url, {
+  const res = await undiciFetch(url, {
     method: "POST",
+    dispatcher: agent,
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       contents: [
@@ -38,7 +43,7 @@ export async function transcribeAudioWithGemini(
     throw new Error(`Audio transcription failed (${res.status}): ${err}`);
   }
 
-  const data = await res.json();
+  const data: any = await res.json();
   const transcript = data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
 
   if (!transcript.trim()) {
