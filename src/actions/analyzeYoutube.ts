@@ -58,8 +58,21 @@ export async function analyzeYoutubeAction(
                 };
             }
 
-            const { buffer, mimeType } = await downloadAudioBuffer(videoId);
-            transcript = await transcribeAudioWithGemini(buffer, mimeType, geminiKey);
+            try {
+                const { buffer, mimeType } = await downloadAudioBuffer(videoId);
+                transcript = await transcribeAudioWithGemini(buffer, mimeType, geminiKey);
+            } catch {
+                // yt-dlp not available (e.g. on Vercel) or download failed
+            }
+        }
+
+        if (!transcript) {
+            return {
+                success: false,
+                error:
+                    "Could not extract a transcript from this video. " +
+                    "Try a different video, or run the app locally where yt-dlp is available for full support.",
+            };
         }
 
         // If transcript is very large, summarize first
