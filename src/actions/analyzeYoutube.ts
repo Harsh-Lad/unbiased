@@ -1,6 +1,7 @@
 "use server";
 
-import { extractVideoId, fetchTranscript, cleanTranscript } from "@/lib/youtube/youtube";
+import { extractVideoId, cleanTranscript } from "@/lib/youtube/youtube";
+import { fetchYouTubeTranscript } from "@/lib/youtube/transcript";
 import { fetchSubtitlesWithYtDlp, downloadAudioBuffer } from "@/lib/youtube/audio";
 import { transcribeAudioWithGemini } from "@/lib/youtube/transcribe";
 import { analyzeText, parseAnalysisResponse, type AnalysisResult } from "@/lib/ai/ai-client";
@@ -33,10 +34,10 @@ export async function analyzeYoutubeAction(
         // Step 1: Try yt-dlp subtitles (most reliable, works locally)
         transcript = await fetchSubtitlesWithYtDlp(videoId);
 
-        // Step 2: Try youtube-transcript library (works on Vercel, no binary needed)
+        // Step 2: Try Innertube API transcript (works on Vercel, no binary needed)
         if (!transcript) {
             try {
-                const segments = await fetchTranscript(videoId);
+                const segments = await fetchYouTubeTranscript(videoId);
                 if (segments && segments.length > 0) {
                     transcript = cleanTranscript(segments);
                 }
