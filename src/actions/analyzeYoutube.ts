@@ -4,7 +4,7 @@ import { extractVideoId, cleanTranscript } from "@/lib/youtube/youtube";
 import { fetchYouTubeTranscript } from "@/lib/youtube/transcript";
 import { fetchSubtitlesWithYtDlp, downloadAudioBuffer } from "@/lib/youtube/audio";
 import { transcribeAudioWithGemini } from "@/lib/youtube/transcribe";
-import { analyzeText, analyzeYoutubeWithGrok, detectProvider, parseAnalysisResponse, type AnalysisResult } from "@/lib/ai/ai-client";
+import { analyzeText, parseAnalysisResponse, type AnalysisResult } from "@/lib/ai/ai-client";
 import { buildFullPrompt } from "@/lib/ai/prompts";
 import { shouldSummarize, buildSummarizationPrompt } from "@/lib/pdf/pdf";
 
@@ -27,14 +27,6 @@ export async function analyzeYoutubeAction(
         const videoId = extractVideoId(url);
         if (!videoId) {
             return { success: false, error: "Invalid YouTube URL. Please paste a valid YouTube video link." };
-        }
-
-        // Grok can process YouTube URLs natively — skip transcript extraction entirely
-        if (detectProvider(apiKey) === "xai") {
-            const systemPrompt = buildFullPrompt();
-            const rawAnalysis = await analyzeYoutubeWithGrok(systemPrompt, url, apiKey);
-            const result = parseAnalysisResponse(rawAnalysis);
-            return { success: true, data: result, videoId };
         }
 
         let transcript: string | null = null;

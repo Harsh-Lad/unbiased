@@ -326,48 +326,6 @@ async function callAnthropicWithImage(
     return data.content?.[0]?.text ?? "";
 }
 
-export async function analyzeYoutubeWithGrok(
-    systemPrompt: string,
-    youtubeUrl: string,
-    apiKey: string
-): Promise<string> {
-    const config = getProviderConfig("xai", apiKey, false);
-
-    const res = await apiFetch(config.url, {
-        method: "POST",
-        headers: config.headers,
-        body: JSON.stringify({
-            model: config.model,
-            messages: [
-                { role: "system", content: systemPrompt },
-                {
-                    role: "user",
-                    content: [
-                        {
-                            type: "text",
-                            text: "Please analyze the following YouTube video for bias and framing:",
-                        },
-                        {
-                            type: "video_url",
-                            video_url: { url: youtubeUrl },
-                        },
-                    ],
-                },
-            ],
-            temperature: 0.7,
-            max_tokens: 4096,
-        }),
-    });
-
-    if (!res.ok) {
-        const err = await res.text();
-        throw new Error(`Grok API error (${res.status}): ${err}`);
-    }
-
-    const data: any = await res.json();
-    return data.choices?.[0]?.message?.content ?? "";
-}
-
 // --- Response Parser ---
 export function parseAnalysisResponse(rawText: string): AnalysisResult {
     const sections = {
