@@ -5,7 +5,8 @@
  * 3. Web page scraping
  */
 
-const ANDROID_UA = "com.google.android.youtube/19.09.37 (Linux; U; Android 14)";
+const ANDROID_UA = "com.google.android.youtube/20.10.38 (Linux; U; Android 11)";
+const IOS_UA = "com.google.ios.youtube/20.10.4 (iPhone16,2; U; CPU iOS 18_3_2 like Mac OS X)";
 const WEB_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36";
 const PLAYER_URL = "https://www.youtube.com/youtubei/v1/player?prettyPrint=false";
 
@@ -41,7 +42,12 @@ export async function fetchYouTubeTranscript(
   // Method 2: ANDROID Innertube client
   let tracks = await getTracksViaAndroid(videoId);
 
-  // Method 3: Web page scraping
+  // Method 3: IOS Innertube client
+  if (!tracks || tracks.length === 0) {
+    tracks = await getTracksViaIos(videoId);
+  }
+
+  // Method 4: Web page scraping
   if (!tracks || tracks.length === 0) {
     tracks = await getTracksViaWeb(videoId);
   }
@@ -93,13 +99,52 @@ async function getTracksViaAndroid(videoId: string): Promise<CaptionTrack[] | nu
       headers: {
         "Content-Type": "application/json",
         "User-Agent": ANDROID_UA,
+        "X-YouTube-Client-Name": "3",
+        "X-YouTube-Client-Version": "20.10.38",
       },
       body: JSON.stringify({
         context: {
           client: {
             clientName: "ANDROID",
-            clientVersion: "19.09.37",
-            androidSdkVersion: 30,
+            clientVersion: "20.10.38",
+            androidSdkVersion: 31,
+            hl: "en",
+            gl: "US",
+          },
+        },
+        videoId,
+      }),
+    });
+
+    if (!res.ok) return null;
+
+    const data = await res.json();
+    const tracks = data?.captions?.playerCaptionsTracklistRenderer?.captionTracks;
+    return Array.isArray(tracks) && tracks.length > 0 ? tracks : null;
+  } catch {
+    return null;
+  }
+}
+
+async function getTracksViaIos(videoId: string): Promise<CaptionTrack[] | null> {
+  try {
+    const res = await fetch(PLAYER_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "User-Agent": IOS_UA,
+        "X-YouTube-Client-Name": "5",
+        "X-YouTube-Client-Version": "20.10.4",
+      },
+      body: JSON.stringify({
+        context: {
+          client: {
+            clientName: "IOS",
+            clientVersion: "20.10.4",
+            deviceMake: "Apple",
+            deviceModel: "iPhone16,2",
+            osName: "iPhone",
+            osVersion: "18.3.2.22D82",
             hl: "en",
             gl: "US",
           },
@@ -135,11 +180,26 @@ async function getTracksViaWeb(videoId: string): Promise<CaptionTrack[] | null> 
       throw new Error("YouTube is rate-limiting requests. Please try again later.");
     }
 
-    const match = html.match(/var ytInitialPlayerResponse\s*=\s*(\{[\s\S]+?\});/);
-    if (!match) return null;
-
-    const player = JSON.parse(match[1]);
-    const tracks = player?.captions?.playerCaptionsTracklistRenderer?.captionTracks;
+    // Try multiple patterns — YouTube changes embedding format periodically
+    const patterns = [
+      /var ytInitialPlayerResponse\s*=\s*(\{.+?\});(?:\s*(?:var|const|let)\s|\s*<\/script>)/,
+      /ytInitialPlayerResponse\s*=\s*(\{.+?\});/,
+      /"playerResponse"\s*:\s*"(\{.+?\})"/,
+    ];
+    let player: Record<string, unknown> | null = null;
+    for (const pat of patterns) {
+      const m = html.match(pat);
+      if (m) {
+        try {
+          const raw = pat.source.includes('"playerResponse"') ? JSON.parse(m[1]) : m[1];
+          player = typeof raw === "string" ? JSON.parse(raw) : JSON.parse(m[1]);
+          break;
+        } catch { /* try next */ }
+      }
+    }
+    if (!player) return null;
+    const tracks = (player as { captions?: { playerCaptionsTracklistRenderer?: { captionTracks?: CaptionTrack[] } } })
+      ?.captions?.playerCaptionsTracklistRenderer?.captionTracks;
     return Array.isArray(tracks) && tracks.length > 0 ? tracks : null;
   } catch (e) {
     if (e instanceof Error && e.message.includes("rate-limiting")) throw e;
