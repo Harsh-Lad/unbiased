@@ -39,6 +39,7 @@ export default function RootLayout({
       >
         <Navbar />
         <main className="min-h-[calc(100vh-4rem)]">{children}</main>
+        <Analytics />
       </body>
     </html>
   );
