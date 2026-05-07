@@ -19,6 +19,7 @@ export default function YouTubePage() {
     const [isLoading, setIsLoading] = useState(false);
     const [result, setResult] = useState<AnalysisResult | null>(null);
     const [error, setError] = useState<string | null>(null);
+    const [errorCode, setErrorCode] = useState<string | null>(null);
     const resultsRef = useRef<HTMLDivElement>(null);
 
     // Auto-scroll to results when analysis completes
@@ -34,6 +35,7 @@ export default function YouTubePage() {
     const handleAnalyze = async (url: string) => {
         setIsLoading(true);
         setError(null);
+        setErrorCode(null);
         setResult(null);
 
         try {
@@ -43,9 +45,11 @@ export default function YouTubePage() {
                 setResult(response.data);
             } else {
                 setError(response.error || "An unexpected error occurred.");
+                setErrorCode(response.errorCode || "UNKNOWN");
             }
         } catch {
             setError("An unexpected error occurred. Please try again.");
+            setErrorCode("UNKNOWN");
         } finally {
             setIsLoading(false);
         }
@@ -100,8 +104,36 @@ export default function YouTubePage() {
 
                 {error && (
                     <Alert className="border-4 border-black dark:border-white bg-red-100 dark:bg-red-900 shadow-[6px_6px_0px_rgba(0,0,0,1)] dark:shadow-[6px_6px_0px_rgba(255,255,255,1)] rounded-2xl">
-                        <AlertDescription className="text-red-900 dark:text-red-100 font-black text-lg p-2">
-                            ❌ {error}
+                        <AlertDescription className="text-red-900 dark:text-red-100 font-black text-base p-2 space-y-3">
+                            <div className="text-lg">❌ {error}</div>
+
+                            {errorCode === "NO_TRANSCRIPT" && (
+                                <div className="font-bold text-sm bg-white/60 dark:bg-black/40 rounded-xl p-3 border-2 border-red-900/30 dark:border-red-100/30">
+                                    <div className="mb-2 text-base">💡 Try a video that:</div>
+                                    <ul className="list-disc pl-5 space-y-1">
+                                        <li>Has the <b>CC</b> button on YouTube (captions enabled)</li>
+                                        <li>Is in English (or has English subtitles)</li>
+                                        <li>Is not age-restricted, private, or members-only</li>
+                                        <li>Is not a YouTube Short or livestream</li>
+                                    </ul>
+                                    <div className="mt-2 text-xs opacity-80">
+                                        Tip: open the video on YouTube, click the <b>...</b> menu →
+                                        &quot;Show transcript&quot;. If nothing appears, this app can&apos;t analyze it.
+                                    </div>
+                                </div>
+                            )}
+
+                            {errorCode === "INVALID_URL" && (
+                                <div className="font-bold text-sm bg-white/60 dark:bg-black/40 rounded-xl p-3 border-2 border-red-900/30 dark:border-red-100/30">
+                                    Paste a full URL like <code className="bg-black/10 dark:bg-white/10 px-1 rounded">https://www.youtube.com/watch?v=...</code> or <code className="bg-black/10 dark:bg-white/10 px-1 rounded">https://youtu.be/...</code>
+                                </div>
+                            )}
+
+                            {errorCode === "RATE_LIMITED" && (
+                                <div className="font-bold text-sm bg-white/60 dark:bg-black/40 rounded-xl p-3 border-2 border-red-900/30 dark:border-red-100/30">
+                                    YouTube is throttling us. Wait a minute, then try again.
+                                </div>
+                            )}
                         </AlertDescription>
                     </Alert>
                 )}

@@ -1,5 +1,6 @@
 "use server";
 
+import { headers } from "next/headers";
 import { extractVideoId, cleanTranscript } from "@/lib/youtube/youtube";
 import { fetchYouTubeTranscript } from "@/lib/youtube/transcript";
 import { fetchSubtitlesWithYtDlp, downloadAudioBuffer } from "@/lib/youtube/audio";
@@ -7,26 +8,53 @@ import { transcribeAudioWithGemini } from "@/lib/youtube/transcribe";
 import { analyzeText, parseAnalysisResponse, type AnalysisResult } from "@/lib/ai/ai-client";
 import { buildFullPrompt } from "@/lib/ai/prompts";
 import { shouldSummarize, buildSummarizationPrompt } from "@/lib/pdf/pdf";
+import { logAnalysis } from "@/lib/history/store";
+
+async function getRequestMeta() {
+    const h = await headers();
+    return {
+        ip: h.get("x-forwarded-for")?.split(",")[0].trim() || h.get("x-real-ip") || undefined,
+        userAgent: h.get("user-agent") || undefined,
+    };
+}
+
+type AnalyzeYoutubeErrorCode =
+    | "INVALID_URL"
+    | "NO_API_KEY"
+    | "NO_TRANSCRIPT"
+    | "RATE_LIMITED"
+    | "UNKNOWN";
 
 interface AnalyzeYoutubeResult {
     success: boolean;
     data?: AnalysisResult;
     videoId?: string;
     error?: string;
+    errorCode?: AnalyzeYoutubeErrorCode;
 }
 
 export async function analyzeYoutubeAction(
     url: string
 ): Promise<AnalyzeYoutubeResult> {
+    const meta = await getRequestMeta();
     try {
         const apiKey = process.env.API_KEY;
         if (!apiKey) {
-            return { success: false, error: "API key is not configured. Please set API_KEY in your .env file." };
+            return {
+                success: false,
+                errorCode: "NO_API_KEY",
+                error: "API key is not configured. Please set API_KEY in your .env file.",
+            };
         }
 
         const videoId = extractVideoId(url);
         if (!videoId) {
-            return { success: false, error: "Invalid YouTube URL. Please paste a valid YouTube video link." };
+            await logAnalysis({ kind: "youtube", input: url, success: false, errorCode: "INVALID_URL", ...meta });
+            return {
+                success: false,
+                errorCode: "INVALID_URL",
+                error: "Invalid YouTube URL. Please paste a valid YouTube video link.",
+            };
         }
 
         let transcript: string | null = null;
@@ -68,11 +96,14 @@ export async function analyzeYoutubeAction(
         }
 
         if (!transcript) {
+            await logAnalysis({ kind: "youtube", input: url, videoId, success: false, errorCode: "NO_TRANSCRIPT", ...meta });
             return {
                 success: false,
+                errorCode: "NO_TRANSCRIPT",
+                videoId,
                 error:
-                    "Could not extract a transcript from this video. " +
-                    "Try a different video, or run the app locally where yt-dlp is available for full support.",
+                    "This video has no captions or transcript available. " +
+                    "Pick a video that shows the 'CC' button on YouTube, or one with manual subtitles.",
             };
         }
 
@@ -96,10 +127,15 @@ export async function analyzeYoutubeAction(
 
         const result = parseAnalysisResponse(rawAnalysis);
 
+        await logAnalysis({ kind: "youtube", input: url, videoId, success: true, ...meta });
         return { success: true, data: result, videoId };
     } catch (error) {
         console.error("YouTube analysis error:", error);
         const message = error instanceof Error ? error.message : "An unexpected error occurred.";
-        return { success: false, error: message };
+        const code: AnalyzeYoutubeErrorCode = message.toLowerCase().includes("rate")
+            ? "RATE_LIMITED"
+            : "UNKNOWN";
+        await logAnalysis({ kind: "youtube", input: url, success: false, errorCode: code, ...meta });
+        return { success: false, errorCode: code, error: message };
     }
 }

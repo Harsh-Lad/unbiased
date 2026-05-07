@@ -1,8 +1,18 @@
 "use server";
 
 import sharp from "sharp";
+import { headers } from "next/headers";
 import { analyzeImage, parseAnalysisResponse, type AnalysisResult } from "@/lib/ai/ai-client";
 import { buildFullPrompt, IMAGE_ANALYSIS_PROMPT } from "@/lib/ai/prompts";
+import { logAnalysis } from "@/lib/history/store";
+
+async function getMeta() {
+    const h = await headers();
+    return {
+        ip: h.get("x-forwarded-for")?.split(",")[0].trim() || h.get("x-real-ip") || undefined,
+        userAgent: h.get("user-agent") || undefined,
+    };
+}
 
 interface AnalyzeImageResult {
     success: boolean;
@@ -16,6 +26,8 @@ const JPEG_QUALITY = 80;
 export async function analyzeImageAction(
     formData: FormData
 ): Promise<AnalyzeImageResult> {
+    const meta = await getMeta();
+    let inputLabel = "";
     try {
         const apiKey = process.env.API_KEY;
         if (!apiKey) {
@@ -27,6 +39,7 @@ export async function analyzeImageAction(
         if (!file || file.size === 0) {
             return { success: false, error: "Please upload an image file." };
         }
+        inputLabel = file.name || "image";
 
         const validTypes = ["image/jpeg", "image/png", "image/webp", "image/gif"];
         if (!validTypes.includes(file.type)) {
@@ -64,6 +77,7 @@ export async function analyzeImageAction(
 
         const result = parseAnalysisResponse(rawAnalysis);
 
+        await logAnalysis({ kind: "image", input: inputLabel, success: true, ...meta });
         return { success: true, data: result };
     } catch (error) {
         console.error("Image analysis error:", error);
@@ -75,6 +89,7 @@ export async function analyzeImageAction(
                 message = error.message;
             }
         }
+        await logAnalysis({ kind: "image", input: inputLabel, success: false, errorCode: "UNKNOWN", ...meta });
         return { success: false, error: message };
     }
 }

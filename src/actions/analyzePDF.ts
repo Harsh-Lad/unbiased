@@ -1,8 +1,18 @@
 "use server";
 
+import { headers } from "next/headers";
 import { extractTextFromPDF, chunkText, shouldSummarize, buildSummarizationPrompt } from "@/lib/pdf/pdf";
 import { analyzeText, parseAnalysisResponse, type AnalysisResult } from "@/lib/ai/ai-client";
 import { buildFullPrompt } from "@/lib/ai/prompts";
+import { logAnalysis, type HistoryKind } from "@/lib/history/store";
+
+async function getMeta() {
+    const h = await headers();
+    return {
+        ip: h.get("x-forwarded-for")?.split(",")[0].trim() || h.get("x-real-ip") || undefined,
+        userAgent: h.get("user-agent") || undefined,
+    };
+}
 
 interface AnalyzePDFResult {
     success: boolean;
@@ -13,6 +23,9 @@ interface AnalyzePDFResult {
 export async function analyzePDFAction(
     formData: FormData
 ): Promise<AnalyzePDFResult> {
+    const meta = await getMeta();
+    let kind: HistoryKind = "pdf";
+    let inputLabel = "";
     try {
         const apiKey = process.env.API_KEY;
         if (!apiKey) {
@@ -28,8 +41,12 @@ export async function analyzePDFAction(
             const arrayBuffer = await file.arrayBuffer();
             const buffer = Buffer.from(arrayBuffer);
             extractedText = await extractTextFromPDF(buffer);
+            kind = "pdf";
+            inputLabel = file.name || "document.pdf";
         } else if (textContent && textContent.trim().length > 0) {
             extractedText = textContent.trim();
+            kind = "text";
+            inputLabel = textContent.trim();
         } else {
             return { success: false, error: "Please upload a PDF file or paste text content." };
         }
@@ -61,6 +78,7 @@ export async function analyzePDFAction(
                 apiKey
             );
             const result = parseAnalysisResponse(rawAnalysis);
+            await logAnalysis({ kind, input: inputLabel, success: true, ...meta });
             return { success: true, data: result };
         }
 
@@ -79,9 +97,11 @@ export async function analyzePDFAction(
         const finalAnalysis = await analyzeText(systemPrompt, combinedPrompt, apiKey);
         const result = parseAnalysisResponse(finalAnalysis);
 
+        await logAnalysis({ kind, input: inputLabel, success: true, ...meta });
         return { success: true, data: result };
     } catch (error) {
         const message = error instanceof Error ? error.message : "An unexpected error occurred.";
+        await logAnalysis({ kind, input: inputLabel, success: false, errorCode: "UNKNOWN", ...meta });
         return { success: false, error: message };
     }
 }
