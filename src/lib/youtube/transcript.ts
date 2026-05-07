@@ -31,12 +31,19 @@ export async function fetchYouTubeTranscript(
   // Method 1: External transcript API (if configured)
   const apiUrl = process.env.TRANSCRIPT_API_URL;
   if (apiUrl) {
+    console.log(`[transcript] calling external API: ${apiUrl}/transcript/${videoId}`);
     try {
       const segments = await fetchViaExternalApi(videoId, apiUrl);
-      if (segments && segments.length > 0) return segments;
-    } catch {
-      // Continue to next method
+      if (segments && segments.length > 0) {
+        console.log(`[transcript] external API succeeded (${segments[0].text.length} chars)`);
+        return segments;
+      }
+      console.log(`[transcript] external API returned empty — falling back`);
+    } catch (err) {
+      console.log(`[transcript] external API error — falling back:`, err);
     }
+  } else {
+    console.log(`[transcript] no TRANSCRIPT_API_URL set — skipping external API`);
   }
 
   // Method 2: ANDROID Innertube client
