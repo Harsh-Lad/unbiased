@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { checkPassword, createSession } from "@/lib/auth/admin";
 
+export const runtime = "nodejs";
+
 export async function POST(req: Request) {
   const { password } = await req.json().catch(() => ({ password: "" }));
   if (!checkPassword(password || "")) {

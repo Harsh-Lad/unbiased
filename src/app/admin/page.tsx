@@ -3,6 +3,7 @@ import { listHistory } from "@/lib/history/store";
 import { LogoutButton } from "./LogoutButton";
 
 export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
 
 function fmtTs(ts: number): string {
   return new Date(ts).toLocaleString();
