@@ -1,21 +1,31 @@
 import Link from "next/link";
+import { Info } from "lucide-react";
 import { listHistory, type HistoryEntry } from "@/lib/history/store";
 import { LogoutButton } from "./LogoutButton";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-function buildVercelLinks() {
-  const url = process.env.VERCEL_URL || process.env.NEXT_PUBLIC_VERCEL_URL || "";
-  const projectName = process.env.VERCEL_PROJECT_NAME || url.split(".")[0] || "your-project";
-  const base = `https://vercel.com/dashboard`;
-  return {
-    overview: base,
-    analytics: `https://vercel.com/~/${projectName}/analytics`,
-    speed: `https://vercel.com/~/${projectName}/speed-insights`,
-    logs: `https://vercel.com/~/${projectName}/logs`,
-    projectName,
-  };
+function topVideos(entries: HistoryEntry[], n = 5) {
+  const counts = new Map<string, { videoId: string; input: string; count: number; success: number }>();
+  for (const e of entries) {
+    if (e.kind !== "youtube" || !e.videoId) continue;
+    const cur = counts.get(e.videoId) || { videoId: e.videoId, input: e.input, count: 0, success: 0 };
+    cur.count++;
+    if (e.success) cur.success++;
+    counts.set(e.videoId, cur);
+  }
+  return [...counts.values()].sort((a, b) => b.count - a.count).slice(0, n);
+}
+
+function errorBreakdown(entries: HistoryEntry[]) {
+  const counts = new Map<string, number>();
+  for (const e of entries) {
+    if (e.success) continue;
+    const code = e.errorCode || "UNKNOWN";
+    counts.set(code, (counts.get(code) || 0) + 1);
+  }
+  return [...counts.entries()].map(([code, count]) => ({ code, count })).sort((a, b) => b.count - a.count);
 }
 
 function bucketByDay(entries: HistoryEntry[], days = 7) {
@@ -74,11 +84,14 @@ export default async function AdminPage() {
   }, {});
   const successCount = entries.filter((e) => e.success).length;
   const failCount = entries.length - successCount;
-  const links = buildVercelLinks();
   const daily = bucketByDay(entries, 7);
   const maxDay = Math.max(1, ...daily.map((d) => d.count));
   const uniqueIps = new Set(entries.map((e) => e.ip).filter(Boolean)).size;
   const successRate = entries.length ? Math.round((successCount / entries.length) * 100) : 0;
+  const errors = errorBreakdown(entries);
+  const top = topVideos(entries, 5);
+  const maxErr = Math.max(1, ...errors.map((e) => e.count));
+  const maxTop = Math.max(1, ...top.map((t) => t.count));
 
   return (
     <div className="min-h-[calc(100vh-4rem)] bg-yellow-50 dark:bg-slate-900 p-6">
@@ -90,40 +103,42 @@ export default async function AdminPage() {
 
         {/* Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <Stat label="Total" value={entries.length} />
-          <Stat label="Success" value={successCount} />
-          <Stat label="Failed" value={failCount} />
-          <Stat label="Kinds" value={Object.keys(counts).length} />
+          <Stat label="Total" value={entries.length} tooltip="All analyses logged (last 1000, both successful and failed)." />
+          <Stat label="Success" value={successCount} tooltip="Analyses that returned a result without error." />
+          <Stat label="Failed" value={failCount} tooltip="Analyses that errored — see 'Failures by reason' below." />
+          <Stat label="Kinds" value={Object.keys(counts).length} tooltip="Distinct content types used (youtube / pdf / image / text)." />
         </div>
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {(["youtube", "pdf", "image", "text"] as const).map((k) => (
-            <Stat key={k} label={k.toUpperCase()} value={counts[k] || 0} />
+            <Stat key={k} label={k.toUpperCase()} value={counts[k] || 0} tooltip={`Number of ${k} analyses logged.`} />
           ))}
         </div>
 
         {/* Daily activity chart */}
         <div className="bg-white dark:bg-slate-800 border-4 border-black dark:border-white rounded-2xl p-4 shadow-[6px_6px_0px_rgba(0,0,0,1)] dark:shadow-[6px_6px_0px_rgba(255,255,255,1)]">
           <div className="font-black uppercase mb-3">Last 7 Days</div>
-          <div className="flex items-end gap-2 h-32">
-            {daily.map((d) => (
-              <div key={d.day} className="flex-1 flex flex-col items-center gap-1">
-                <div className="text-xs font-mono">{d.count || ""}</div>
-                <div className="w-full flex flex-col-reverse" style={{ height: "70%" }}>
-                  <div
-                    className="bg-green-500 border-2 border-black dark:border-white"
-                    style={{ height: `${(d.success / maxDay) * 100}%` }}
-                    title={`${d.success} success`}
-                  />
-                  <div
-                    className="bg-red-500 border-2 border-b-0 border-black dark:border-white"
-                    style={{ height: `${(d.fail / maxDay) * 100}%` }}
-                    title={`${d.fail} failed`}
-                  />
+          <div className="flex items-end gap-2 h-40">
+            {daily.map((d) => {
+              const totalPct = (d.count / maxDay) * 100;
+              const successPct = d.count > 0 ? (d.success / d.count) * 100 : 0;
+              return (
+                <div key={d.day} className="flex-1 flex flex-col items-center gap-1 h-full">
+                  <div className="text-xs font-mono h-4">{d.count || ""}</div>
+                  <div className="w-full flex-1 flex flex-col justify-end">
+                    <div
+                      className="w-full border-2 border-black dark:border-white flex flex-col-reverse overflow-hidden rounded-t-sm"
+                      style={{ height: `${totalPct}%`, minHeight: d.count > 0 ? "4px" : "0" }}
+                      title={`${d.success} ok / ${d.fail} failed`}
+                    >
+                      <div className="bg-green-500 w-full" style={{ height: `${successPct}%` }} />
+                      <div className="bg-red-500 w-full" style={{ height: `${100 - successPct}%` }} />
+                    </div>
+                  </div>
+                  <div className="text-xs font-bold opacity-70">{d.day}</div>
                 </div>
-                <div className="text-xs font-bold opacity-70">{d.day}</div>
-              </div>
-            ))}
+              );
+            })}
           </div>
           <div className="flex gap-4 mt-3 text-xs font-bold">
             <span className="flex items-center gap-1">
@@ -137,23 +152,58 @@ export default async function AdminPage() {
 
         {/* Extra metrics */}
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-          <Stat label="Success rate" value={`${successRate}%`} />
-          <Stat label="Unique IPs" value={uniqueIps} />
-          <Stat label="Today" value={daily[daily.length - 1]?.count ?? 0} />
+          <Stat label="Success rate" value={`${successRate}%`} tooltip="Successful analyses ÷ total analyses, across the full logged history." />
+          <Stat label="Unique IPs" value={uniqueIps} tooltip="Distinct client IPs seen across all logged analyses (rough proxy for distinct users)." />
+          <Stat label="Today" value={daily[daily.length - 1]?.count ?? 0} tooltip="Total analyses started today (server local time)." />
         </div>
 
-        {/* Vercel Insights links */}
-        <div className="bg-white dark:bg-slate-800 border-4 border-black dark:border-white rounded-2xl p-4 shadow-[6px_6px_0px_rgba(0,0,0,1)] dark:shadow-[6px_6px_0px_rgba(255,255,255,1)] space-y-3">
-          <div className="font-black uppercase">📊 Vercel Insights</div>
-          <p className="text-sm opacity-80">
-            Page views, referrers, Web Vitals, and runtime logs live in your Vercel dashboard
-            (Vercel blocks iframe embedding for security).
-          </p>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <VercelLink href={links.analytics} title="Web Analytics" desc="Visits, referrers, paths" />
-            <VercelLink href={links.speed} title="Speed Insights" desc="Web Vitals, real users" />
-            <VercelLink href={links.logs} title="Runtime Logs" desc="Server errors" />
-            <VercelLink href={links.overview} title="Project" desc="Deploys, env, settings" />
+        {/* Error breakdown + top videos */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="bg-white dark:bg-slate-800 border-4 border-black dark:border-white rounded-2xl p-4 shadow-[6px_6px_0px_rgba(0,0,0,1)] dark:shadow-[6px_6px_0px_rgba(255,255,255,1)]">
+            <div className="font-black uppercase mb-3">Failures by reason</div>
+            {errors.length === 0 ? (
+              <div className="text-sm opacity-70">No failures recorded.</div>
+            ) : (
+              <div className="space-y-2">
+                {errors.map((e) => (
+                  <div key={e.code} className="flex items-center gap-2">
+                    <div className="w-32 text-xs font-mono truncate" title={e.code}>{e.code}</div>
+                    <div className="flex-1 h-5 bg-black/5 dark:bg-white/5 border border-black dark:border-white rounded">
+                      <div className="h-full bg-red-500" style={{ width: `${(e.count / maxErr) * 100}%` }} />
+                    </div>
+                    <div className="w-8 text-right text-sm font-bold">{e.count}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="bg-white dark:bg-slate-800 border-4 border-black dark:border-white rounded-2xl p-4 shadow-[6px_6px_0px_rgba(0,0,0,1)] dark:shadow-[6px_6px_0px_rgba(255,255,255,1)]">
+            <div className="font-black uppercase mb-3">Top YouTube videos</div>
+            {top.length === 0 ? (
+              <div className="text-sm opacity-70">No YouTube analyses yet.</div>
+            ) : (
+              <div className="space-y-2">
+                {top.map((t) => (
+                  <div key={t.videoId} className="flex items-center gap-2">
+                    <Link
+                      href={`https://www.youtube.com/watch?v=${t.videoId}`}
+                      target="_blank"
+                      className="w-32 text-xs font-mono truncate text-blue-700 dark:text-blue-300 underline"
+                      title={t.input}
+                    >
+                      {t.videoId}
+                    </Link>
+                    <div className="flex-1 h-5 bg-black/5 dark:bg-white/5 border border-black dark:border-white rounded">
+                      <div className="h-full bg-green-500" style={{ width: `${(t.count / maxTop) * 100}%` }} />
+                    </div>
+                    <div className="w-16 text-right text-xs font-bold">
+                      {t.success}/{t.count}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
 
@@ -226,24 +276,22 @@ export default async function AdminPage() {
   );
 }
 
-function Stat({ label, value }: { label: string; value: number | string }) {
+function Stat({ label, value, tooltip }: { label: string; value: number | string; tooltip?: string }) {
   return (
-    <div className="bg-white dark:bg-slate-800 border-4 border-black dark:border-white rounded-2xl p-4 shadow-[4px_4px_0px_rgba(0,0,0,1)] dark:shadow-[4px_4px_0px_rgba(255,255,255,1)]">
-      <div className="text-xs font-bold uppercase opacity-70">{label}</div>
+    <div className="relative bg-white dark:bg-slate-800 border-4 border-black dark:border-white rounded-2xl p-4 shadow-[4px_4px_0px_rgba(0,0,0,1)] dark:shadow-[4px_4px_0px_rgba(255,255,255,1)]">
+      {tooltip && (
+        <span
+          tabIndex={0}
+          aria-label={tooltip}
+          title={tooltip}
+          className="absolute top-2 right-2 text-black/40 dark:text-white/40 hover:text-black dark:hover:text-white cursor-help focus:outline-none focus-visible:text-black dark:focus-visible:text-white"
+        >
+          <Info className="w-4 h-4" />
+        </span>
+      )}
+      <div className="text-xs font-bold uppercase opacity-70 pr-6">{label}</div>
       <div className="text-3xl font-black">{value}</div>
     </div>
   );
 }
 
-function VercelLink({ href, title, desc }: { href: string; title: string; desc: string }) {
-  return (
-    <Link
-      href={href}
-      target="_blank"
-      className="block bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 border-2 border-black dark:border-white rounded-xl p-3 transition"
-    >
-      <div className="font-black text-sm">{title} →</div>
-      <div className="text-xs opacity-70 mt-1">{desc}</div>
-    </Link>
-  );
-}

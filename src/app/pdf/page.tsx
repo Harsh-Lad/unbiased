@@ -1,5 +1,7 @@
 "use client";
 
+export const maxDuration = 60;
+
 import { useState, useRef, useEffect } from "react";
 import { motion } from "framer-motion";
 import { FileUpload } from "@/components/upload/FileUpload";

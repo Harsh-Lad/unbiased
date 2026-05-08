@@ -133,7 +133,6 @@ def clean_srt(srt: str) -> str:
 
 
 def get_transcript(video_id: str) -> str | None:
-    log.info("[fetch] %s — trying youtube-transcript-api", video_id)
     text = fetch_via_api(video_id)
     if text:
         log.info("[fetch] %s — api success (%d chars)", video_id, len(text))

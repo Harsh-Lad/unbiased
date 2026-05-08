@@ -21,6 +21,15 @@ The Next.js app calls a small Python service (`transcript-service-py/`) to fetch
 
 > **Note (free tier):** Sleeps after 15 min idle, ~30s cold start on first request after sleep. Upgrade to Starter ($7/mo) if that's a problem.
 
+### Keep the free service warm (recommended)
+
+So users never hit the 30s cold start, ping `/health` every ~10 min from any external uptime monitor. Vercel Hobby cron only runs ~2/day, so use a third-party pinger:
+
+- **UptimeRobot** (free, easiest): New Monitor → HTTP(s) → URL `https://<your-service>.onrender.com/health` → interval 5 min.
+- **cron-job.org** (free): same idea — create a job hitting `/health` every 10 min.
+
+This is purely external; nothing in the Next.js or Python code depends on it.
+
 ## Phase 3 — Wire up Vercel
 
 In your Vercel project → **Settings → Environment Variables**, add:
