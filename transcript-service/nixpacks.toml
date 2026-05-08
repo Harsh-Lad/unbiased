@@ -1,6 +1,0 @@
-# Railway uses Nixpacks to build — this installs yt-dlp into the environment
-[phases.setup]
-nixPkgs = ["yt-dlp", "nodejs_20"]
-
-[start]
-cmd = "node server.js"

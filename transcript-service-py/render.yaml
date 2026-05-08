@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: unbiasy-transcripts
+    runtime: docker
+    rootDir: transcript-service-py
+    dockerfilePath: ./Dockerfile
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: API_SECRET
+        generateValue: true
+      - key: YOUTUBE_COOKIES_B64
+        sync: false
+      - key: PROXY_URL
+        sync: false

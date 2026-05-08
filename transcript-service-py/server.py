@@ -26,13 +26,18 @@ import subprocess
 import tempfile
 from pathlib import Path
 
+from dotenv import load_dotenv
+load_dotenv()
+
 from flask import Flask, jsonify, request
+from flask_cors import CORS
 from youtube_transcript_api import YouTubeTranscriptApi
 from youtube_transcript_api._errors import (
     NoTranscriptFound,
     TranscriptsDisabled,
     VideoUnavailable,
 )
+from youtube_transcript_api.proxies import GenericProxyConfig
 
 logging.basicConfig(level=logging.INFO, format="[%(asctime)s] %(message)s")
 log = logging.getLogger("transcript")
@@ -63,14 +68,13 @@ HAS_COOKIES = init_cookies()
 def fetch_via_api(video_id: str) -> str | None:
     """Pure-Python Innertube fetch. Fast but blocked on datacenter IPs without proxy."""
     try:
-        kwargs = {}
-        if PROXY_URL:
-            kwargs["proxies"] = {"http": PROXY_URL, "https": PROXY_URL}
-        if HAS_COOKIES:
-            kwargs["cookies"] = COOKIES_PATH
-
-        segments = YouTubeTranscriptApi.get_transcript(video_id, languages=["en"], **kwargs)
-        text = " ".join(s["text"].strip() for s in segments if s.get("text"))
+        proxy_config = (
+            GenericProxyConfig(http_url=PROXY_URL, https_url=PROXY_URL)
+            if PROXY_URL else None
+        )
+        api = YouTubeTranscriptApi(proxy_config=proxy_config)
+        fetched = api.fetch(video_id, languages=["en", "en-US", "en-GB", "en-orig"])
+        text = " ".join(s.text.strip() for s in fetched if s.text)
         text = re.sub(r"\s{2,}", " ", text).strip()
         return text if len(text) > 50 else None
     except (NoTranscriptFound, TranscriptsDisabled, VideoUnavailable) as e:
@@ -147,6 +151,7 @@ def get_transcript(video_id: str) -> str | None:
 # ---------------------------------------------------------------------------
 
 app = Flask(__name__)
+CORS(app, resources={r"/*": {"origins": "*"}}, allow_headers=["x-api-secret", "Content-Type"])
 
 
 @app.get("/")
