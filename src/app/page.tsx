@@ -375,7 +375,7 @@ export default function LandingPage() {
                 UB
               </div>
               <span className="font-black uppercase tracking-wide text-black dark:text-white text-sm">
-                Unbiased — Educational Bias Awareness
+                Unbiasy — Educational Bias Awareness
               </span>
             </div>
             <p className="text-sm font-bold text-black/60 dark:text-white/60 flex items-center gap-2">

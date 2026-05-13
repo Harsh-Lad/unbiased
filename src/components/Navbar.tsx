@@ -26,7 +26,7 @@ export function Navbar() {
                         UB
                     </motion.div>
                     <span className="text-xl font-black uppercase tracking-tight text-black dark:text-white hidden sm:inline">
-                        Unbiased
+                        Unbiasy
                     </span>
                 </Link>
 
